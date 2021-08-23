@@ -7,6 +7,9 @@ dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(dir, 'setting.json'), 'r', encoding='utf-8') as jfile:
     settings = json.load(jfile)
 
+with open(os.path.join(dir, 'token.json'), 'r', encoding='utf-8') as jtoken:
+    Token = json.load(jtoken)
+
 def update_settings():
   with open(os.path.join(dir, 'setting.json'), 'w', encoding='utf-8') as file:
     json.dump(settings, file)
@@ -111,4 +114,4 @@ async def 白痴語錄(ctx):
 
 if __name__ == '__main__':
   keep_alive.keep_alive()
-  bot.run(settings['TOKEN'])
+  bot.run(Token['TOKEN'])
