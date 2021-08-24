@@ -1,7 +1,7 @@
 import discord, random, time, os, json, re
 import keep_alive
 from discord.ext import commands
-bot = commands.Bot(command_prefix='>')
+bot = commands.Bot(command_prefix='>', help_command=None)
 dir = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(dir, 'setting.json'), 'r', encoding='utf-8') as jfile:
@@ -50,7 +50,8 @@ async def on_message(message):
             else:
                 await message.channel.send('幹你娘 閉嘴 低能兒')
     # 請問這是我婆嗎
-    if message.content == '請問這是我婆嗎':
+    wifeRegex = re.compile(r'.*婆.*[嗎吧]')
+    if re.match(wifeRegex, message.content):
         if message.author.id == settings['memberIDs']['深坑麻辣臭豆腐P']:
             lines = ['是', '沒錯', '當然']
             await message.channel.send(random.choice(lines))
@@ -58,48 +59,93 @@ async def on_message(message):
             lines = ['0', '並沒有', '不是', '想太多', '快醒醒', '滾']
             await message.channel.send(random.choice(lines))
     # 唐主席中文名言集
-    if message.author.id == settings['memberIDs']['深坑麻辣臭豆腐P']:
-        if message.content == '真的':
-            pic = discord.File(os.path.join(dir, 'Pic', 'Really.png'))
-            await message.channel.send(file=pic)
-        elif message.content == '謝謝':
-            pic = discord.File(os.path.join(dir, 'Pic', 'Thanks.png'))
-            await message.channel.send(file=pic)
-    await bot.process_commands(message)
+    if message.content == '真的':
+        pic = discord.File(os.path.join(dir, 'Pic', 'Really.png'))
+        await message.channel.send(file=pic)
+    elif message.content == '謝謝':
+        pic = discord.File(os.path.join(dir, 'Pic', 'Thanks.png'))
+        await message.channel.send(file=pic)
     # 針對鴆希說婆
     if message.author.id == 361192451777626113 and re.search('婆', message.content):
       lines = ['0', '並沒有', '不是']
       await message.channel.send(random.choice(lines))
+    # 好笑嗎
+    if message.content == '好笑嗎' and message.reference.message_id != None:
+      dumb_jokes = settings['dumb_jokes']
+      target = await message.channel.fetch_message(message.reference.message_id)
+      if target.author == bot.user:
+        lines = ['別想給我來這招', '不好笑']
+        await message.channel.send(random.choice(lines))
+      else:
+        dumb_jokes.append([target.content, target.author.id])
+        await message.channel.send('好笑嗎')
+        update_settings()
+      print(dumb_jokes)
+    await bot.process_commands(message)
 
 @bot.command()
-async def gacha(ctx):
-  cards = random.choices(['R', 'SR', 'UR'], weights=[85, 10, 5], k=9)
-  cards.append(random.choices(['SR', 'UR'], weights=[95, 5], k=1)[0])
-  result = [0, 0, 0]
-  for card in cards:
-    if card == 'R':
-      result[0] += 1
-    elif card == 'SR':
-      result[1] += 1
-    elif card == 'UR':
-      result[2] += 1
-  output = str(cards) + f'\r合計：\rR: {result[0]}張\rSR: {result[1]}張\rUR: {result[2]}張'
-  if result == [9, 1, 0]:
-    output += '\r保底，笑死'
-  elif result[2] == 0:
-    output += '\r哭啊 沒有UR'
-  elif result[2] >= 3:
-    output += '\r牛逼啊老鐵'
-  await ctx.send(output)
-
-@bot.command()
-async def 好笑嗎(ctx):
-  dumb_jokes = settings['dumb_jokes']
-  message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-  dumb_jokes.append([message.content, message.author.id])
-  await ctx.send('好笑嗎')
-  update_settings()
-  print(dumb_jokes)
+async def gacha(ctx, game, type, count: int=None):
+  try:
+    if count == None:
+      count = 1
+    output = ''
+    result = {}
+    if count > 100:
+      await ctx.send('那麼多我抽不完 = =')
+      return
+    elif count < 1:
+      await ctx.send('這是要我抽三小')
+      return
+    games = {
+      'LLSIF': [['R', 'SR', 'SSR', 'UR'], [80, 15, 4, 1], 11],
+      'LLAS': [['R', 'SR', 'UR'], [85, 10, 5], 10]
+    }
+    Game = games.get(game.upper())
+    if Game != None:
+      if type.lower() == 'single' or type == '單' or type == '單抽':
+        cards = random.choices(Game[0], weights=Game[1], k=count)
+        for rarity in Game[0]:
+          for card in cards:
+            if card == rarity:
+              result[rarity] = result.get(rarity, 0) + 1
+        for x in range(len(cards)):
+          if (x+1) % 5 == 0:
+            output += f'[{cards[x]}]、\r'
+          else:
+            output += f'[{cards[x]}]、'
+        if output[-1] == '、':
+          output = output[:-1:]
+        elif output[-1] == '\r':
+          output = output[:-2:]
+        output += f'\r合計：'
+      elif type.lower() == 'multi' or type == '連' or type == '連抽':
+        for x in range(count):
+          cards = random.choices(Game[0], weights=Game[1], k=Game[2]-1)
+          high_rarities = [[], []]
+          for y in range(1, len(Game[0])):
+            high_rarities[0].append(Game[0][y])
+            high_rarities[1].append(Game[1][y])
+          high_rarities[1][0] += Game[1][0]
+          cards.append(random.choices(high_rarities[0], weights=high_rarities[1], k=1)[0])
+          for rarity in Game[0]:
+            for card in cards:
+              if card == rarity:
+                result[rarity] = result.get(rarity, 0) + 1
+          output += f'{str(cards)}\r'
+        output += '合計：'
+      else:
+        await ctx.send('要單抽還是連抽講清楚啦')
+        return
+      for rarity in Game[0]:
+        if result.get(rarity) != None:
+          output += f'\r{rarity}: {result[rarity]}張'
+        else:
+          output += f'\r{rarity}: 0張'
+      await ctx.send(output)
+    else:
+      await ctx.send('那什麼鳥遊戲 聽都沒聽過')
+  except:
+    await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
 
 @bot.command()
 async def 白痴語錄(ctx):
@@ -111,6 +157,17 @@ async def 白痴語錄(ctx):
   else:
     await ctx.send('沒東西可以發')
   print(dumb_jokes)
+
+@bot.command()
+async def get_help(ctx):
+  embed = discord.Embed(title='偉大唐主席', description='很好....你很腦殘嗎....敢這樣講學園偶像.......我死也不會放過你。', color=discord.Color.from_rgb(160, 255, 249))
+  embed.add_field(name='>gacha', value='抽卡模擬（機率套用LLAS）', inline=False)
+  embed.add_field(name='偉大唐主席說：[文字]', value='唐主席會複誦[文字]內的內容，冒號可用半/全形，或用空格代替。', inline=False)
+  embed.add_field(name='好笑嗎', value='使用此指令必須要回覆一則訊息，會將該訊息的內容及發送者存入『白痴語錄庫』當中。', inline=False)
+  embed.add_field(name='>白痴語錄', value='從『白痴語錄庫』隨機發送一則訊息，並標註原作者。', inline=False)
+  embed.add_field(name='其它功能', value='會針對特定訊息做回覆，像是：\r防止鴆希@R6\r當某人說XXX婆會做出回應\r說"真的"或"謝謝"會丟圖片', inline=False)
+  await ctx.send(embed=embed)
+
 
 if __name__ == '__main__':
   keep_alive.keep_alive()
