@@ -84,30 +84,36 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.command()
-async def gacha(ctx, game, type, count: int=None):
-  try:
+async def gacha(ctx, game, type, count: int=None, too_many=None):
+    if too_many != None:
+        await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
+        return
     if count == None:
       count = 1
     output = ''
     result = {}
-    if count > 100:
-      await ctx.send('那麼多我抽不完 = =')
-      return
-    elif count < 1:
-      await ctx.send('這是要我抽三小')
+    if count < 1:
+      await ctx.send('次數不是正整數我是要怎麼抽')
       return
     games = {
       'LLSIF': [['R', 'SR', 'SSR', 'UR'], [80, 15, 4, 1], 11],
-      'LLAS': [['R', 'SR', 'UR'], [85, 10, 5], 10]
+      'LLAS': [['R', 'SR', 'UR'], [85, 10, 5], 10],
+      'ARKNIGHTS': [['3★', '4★', '5★', '6★'], [40, 50, 8, 2], 10]
     }
     Game = games.get(game.upper())
     if Game != None:
-      if type.lower() == 'single' or type == '單' or type == '單抽':
+      if type.lower() == 'single' or type.upper() == 'S' or type == '單' or type == '單抽':
+        if count > 100:
+            await ctx.send('那麼多我抽不完 = =')
+            return
         cards = random.choices(Game[0], weights=Game[1], k=count)
         for rarity in Game[0]:
           for card in cards:
             if card == rarity:
               result[rarity] = result.get(rarity, 0) + 1
+        for x in range(len(cards)):
+            if cards[x] == Game[0][-1]:
+                cards[x] = f'__**{Game[0][-1]}**__'
         for x in range(len(cards)):
           if (x+1) % 5 == 0:
             output += f'[{cards[x]}]、\r'
@@ -118,7 +124,10 @@ async def gacha(ctx, game, type, count: int=None):
         elif output[-1] == '\r':
           output = output[:-2:]
         output += f'\r合計：'
-      elif type.lower() == 'multi' or type == '連' or type == '連抽':
+      elif type.lower() == 'multi' or type.upper() == 'M' or type == '連' or type == '連抽':
+        if count > 30:
+            await ctx.send('那麼多我抽不完 = =')
+            return
         for x in range(count):
           cards = random.choices(Game[0], weights=Game[1], k=Game[2]-1)
           high_rarities = [[], []]
@@ -131,6 +140,9 @@ async def gacha(ctx, game, type, count: int=None):
             for card in cards:
               if card == rarity:
                 result[rarity] = result.get(rarity, 0) + 1
+          for x in range(len(cards)):
+            if cards[x] == Game[0][-1]:
+                cards[x] = f'__**{Game[0][-1]}**__'
           output += f'{str(cards)}\r'
         output += '合計：'
       else:
@@ -144,8 +156,13 @@ async def gacha(ctx, game, type, count: int=None):
       await ctx.send(output)
     else:
       await ctx.send('那什麼鳥遊戲 聽都沒聽過')
-  except:
-    await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
+
+@gacha.error
+async def gacha_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send('次數不是正整數我是要怎麼抽')
 
 @bot.command()
 async def 白痴語錄(ctx):
@@ -161,7 +178,7 @@ async def 白痴語錄(ctx):
 @bot.command()
 async def get_help(ctx):
   embed = discord.Embed(title='偉大唐主席', description='很好....你很腦殘嗎....敢這樣講學園偶像.......我死也不會放過你。', color=discord.Color.from_rgb(160, 255, 249))
-  embed.add_field(name='>gacha', value='抽卡模擬（機率套用LLAS）', inline=False)
+  embed.add_field(name='>gacha [遊戲] [single/multi] [次數]', value='抽卡模擬\r目前支援遊戲：LLAS、LLSIF。\rsingle(S)代表單抽；multi(M)代表連抽（通常為十連）。\r次數為正整數，代表進行抽卡的次數，若不填則抽一次，不要填入太大的數字。', inline=False)
   embed.add_field(name='偉大唐主席說：[文字]', value='唐主席會複誦[文字]內的內容，冒號可用半/全形，或用空格代替。', inline=False)
   embed.add_field(name='好笑嗎', value='使用此指令必須要回覆一則訊息，會將該訊息的內容及發送者存入『白痴語錄庫』當中。', inline=False)
   embed.add_field(name='>白痴語錄', value='從『白痴語錄庫』隨機發送一則訊息，並標註原作者。', inline=False)
