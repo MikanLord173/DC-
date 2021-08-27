@@ -1,6 +1,7 @@
 import discord, random, time, os, json, re
 import keep_alive
-from discord.ext import commands
+import YTCrawler
+from discord.ext import commands, tasks
 bot = commands.Bot(command_prefix='>', help_command=None)
 dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +20,7 @@ async def on_ready():
     print(bot.user)
     game = discord.Game('你媽')
     await bot.change_presence(status=discord.Status.idle, activity=game)
+    YouTubeCrawler.start()
 
 @bot.event
 async def on_message(message):
@@ -185,7 +187,23 @@ async def get_help(ctx):
   embed.add_field(name='其它功能', value='會針對特定訊息做回覆，像是：\r防止鴆希@R6\r當某人說XXX婆會做出回應\r說"真的"或"謝謝"會丟圖片', inline=False)
   await ctx.send(embed=embed)
 
+@tasks.loop(minutes=1.0)
+async def YouTubeCrawler():
+    print("從LL官方YouTube頻道取得了資料。")
+    ChannelIDs = {
+        'LLSeries':'UCTkyJbRhal4voLZxmdRSssQ',
+        'MuseTW':'UCgdwtyqBunlRb-i-7PnCssQ'
+    }
+    Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
+    uploads_id = Crawler.get_uploads_id(ChannelIDs['LLSeries'])
+    playlist = Crawler.get_playlist(uploads_id)
+    video_info = Crawler.get_video(playlist[0])
+    if settings['last_upload'] != video_info['time']:
+        channel = bot.get_channel(831184709241274372)
+        await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
+    settings['last_upload'] = video_info['time']
+    update_settings()
 
 if __name__ == '__main__':
-  keep_alive.keep_alive()
-  bot.run(Token['TOKEN'])
+    keep_alive.keep_alive()
+    bot.run(Token['TOKEN'])
