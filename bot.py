@@ -21,6 +21,7 @@ async def on_ready():
     game = discord.Game('你媽')
     await bot.change_presence(status=discord.Status.idle, activity=game)
     YouTubeCrawler.start()
+    MuseTWCrawler.start()
 
 @bot.event
 async def on_message(message):
@@ -233,19 +234,26 @@ async def get_help(ctx):
 
 @tasks.loop(minutes=1.0)
 async def YouTubeCrawler():
-	ChannelIDs = {
-	    'LLSeries': 'UCTkyJbRhal4voLZxmdRSssQ',
-	    'MuseTW': 'UCgdwtyqBunlRb-i-7PnCssQ'
-	}
 	Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
-	uploads_id = Crawler.get_uploads_id(ChannelIDs['LLSeries'])
+	uploads_id = Crawler.get_uploads_id('UCTkyJbRhal4voLZxmdRSssQ')
 	playlist = Crawler.get_playlist(uploads_id)
 	video_info = Crawler.get_video(playlist[0])
-	if settings['last_upload'] != video_info['time']:
+	if settings['last_upload'][0] != video_info['time']:
 		channel = bot.get_channel(831184709241274372)
 		await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
-	settings['last_upload'] = video_info['time']
+	settings['last_upload'][0] = video_info['time']
 	update_settings()
+
+@tasks.loop(minutes=1.0)
+async def MuseTWCrawler():
+  Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
+  playlist = Crawler.get_playlist('PL12UaAf_xzfrCAOTroy2IhYeGg7mYc6wO')
+  video_info = Crawler.get_video(playlist[-1])
+  if settings['last_upload'][1] != video_info['time']:
+    channel = bot.get_channel(878351622839881731)
+    await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
+  settings['last_upload'][1] = video_info['time']
+  update_settings()
 
 if __name__ == '__main__':
 	keep_alive.keep_alive()
