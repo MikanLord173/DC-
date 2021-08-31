@@ -1,20 +1,4 @@
 import requests
-from datetime import datetime
-
-YTAPI = 'AIzaSyCJXA1a4BKp5va4QjJ1BCZYCHPQYfgLRE4'
-
-def main():
-    ChannelIDs = {
-        'LLSeries':'UCTkyJbRhal4voLZxmdRSssQ',
-        'MuseTW':'UCgdwtyqBunlRb-i-7PnCssQ'
-    }
-    Crawler = YTCrawler(YTAPI)
-    uploads_id = Crawler.get_uploads_id(ChannelIDs['LLSeries'])
-    #print(uploads_id)
-    playlist = Crawler.get_playlist(uploads_id)
-    #print(playlist)
-    video_info = Crawler.get_video(playlist[0])
-    print(video_info)
 
 class YTCrawler():
     def __init__(self, key):
@@ -39,7 +23,7 @@ class YTCrawler():
             uploads_id = None
         return uploads_id
 
-    def get_playlist(self, playlist_id, part='contentDetails', max_results=5):
+    def get_playlist(self, playlist_id, part='contentDetails', max_results=50):
         path = f'playlistItems?part={part}&playlistId={playlist_id}&maxResults={max_results}'
         data = self.html_to_json(path)
         if not data:
@@ -52,6 +36,7 @@ class YTCrawler():
     def get_video(self, video_id, part='snippet,statistics'):
         path = f'videos?part={part}&id={video_id}'
         data = self.html_to_json(path)
+        
         if not data:
             return {}
         data_item = data['items'][0]
@@ -64,15 +49,12 @@ class YTCrawler():
             'url': url_,
             'title': data_item['snippet']['title'],
             'description': data_item['snippet']['description'],
-            'likes': data_item['statistics']['likeCount'],
-            'dislikes': data_item['statistics']['dislikeCount'],
-            'commentCount': data_item['statistics']['commentCount'],
             'views': data_item['statistics']['viewCount']
         }
         return info
         
+
 """
-從網站回傳的資料格式：
 {
     'kind': 'youtube#video', 
     'etag': 'O8dYZboHRUpUtILcansZCTS4eho', 
