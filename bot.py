@@ -1,9 +1,14 @@
-import discord, random, time, os, json, re
-import keep_alive
+import discord, random, time, os, json, re, requests
 import YTCrawler
 from discord.ext import commands, tasks
 bot = commands.Bot(command_prefix='>', help_command=None)
 dir = os.path.dirname(os.path.abspath(__file__))
+
+r = requests.head(url='https://discord.com/api/v1')
+try:
+    print(f'Rate limit {int(r.headers["Retry-After"])/60} minutes left.')
+except:
+    print('No rate limit.')
 
 with open(os.path.join(dir, 'setting.json'), 'r', encoding='utf-8') as jfile:
     settings = json.load(jfile)
@@ -42,7 +47,7 @@ async def on_message(message):
 			if not isinstance(message.channel, discord.channel.DMChannel):
 				await message.delete()
 	# @R6警察
-	if message.content == '<@&831204351313313812>' and message.channel == bot.get_channel(831200868103356476): 
+	if re.search('<@&831204351313313812>', message.content) and message.channel == bot.get_channel(831200868103356476): 
 	    if message.author.id == 361192451777626113 or message.author.id == 854013876411564039:
 		    chance = random.randint(1, 100)
 		    print(chance)
@@ -232,7 +237,7 @@ async def get_help(ctx):
 	    inline=False)
 	await ctx.send(embed=embed)
 
-@tasks.loop(minutes=1.0)
+@tasks.loop(minutes=3.0)
 async def YouTubeCrawler():
 	Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
 	uploads_id = Crawler.get_uploads_id('UCTkyJbRhal4voLZxmdRSssQ')
@@ -244,17 +249,16 @@ async def YouTubeCrawler():
 	settings['last_upload'][0] = video_info['time']
 	update_settings()
 
-@tasks.loop(minutes=1.0)
+@tasks.loop(minutes=5.0)
 async def MuseTWCrawler():
   Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
   playlist = Crawler.get_playlist('PL12UaAf_xzfrCAOTroy2IhYeGg7mYc6wO')
   video_info = Crawler.get_video(playlist[-1])
   if settings['last_upload'][1] != video_info['time']:
-    channel = bot.get_channel(878351622839881731)
+    channel = bot.get_channel(831184709241274372)
     await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
   settings['last_upload'][1] = video_info['time']
   update_settings()
 
 if __name__ == '__main__':
-	keep_alive.keep_alive()
 	bot.run(Token['TOKEN'])
