@@ -1,5 +1,5 @@
 import discord, random, time, os, json, re, requests
-import YTCrawler
+import crawler
 from discord.ext import commands, tasks
 bot = commands.Bot(command_prefix='>', help_command=None)
 dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,189 +16,16 @@ with open(os.path.join(dir, 'setting.json'), 'r', encoding='utf-8') as jfile:
 with open(os.path.join(dir, 'token.json'), 'r', encoding='utf-8') as jtoken:
     Token = json.load(jtoken)
 
-def update_settings():
+def update_settings(sett):
   with open(os.path.join(dir, 'setting.json'), 'w', encoding='utf-8') as file:
-    json.dump(settings, file)
+    json.dump(sett, file, indent=4)
 
 @bot.event
 async def on_ready():
-    print(bot.user)
+    print(f'{bot.user}到Discord耍帥')
     game = discord.Game('你媽')
     await bot.change_presence(status=discord.Status.idle, activity=game)
-    YouTubeCrawler.start()
-    MuseTWCrawler.start()
-
-@bot.event
-async def on_message(message):
-	# 防止機器人發出的訊息觸發指令
-	if message.author == bot.user:
-		return
-	else:
-		print(message.content, message.channel)
-	# 複誦訊息
-	if re.match(r'偉大唐主席說[：:\s]?.*', message.content):
-		str = message.content[6]
-		tmp = message.content.split(str, 1)
-		if len(tmp) == 1 or tmp[1] == '':
-			replys = ['= =', '==', '你要我說三小', '講人話好嗎', '不要煩我', '滾']
-			await message.channel.send(random.choice(replys))
-		else:
-			await message.channel.send(tmp[1])
-			if not isinstance(message.channel, discord.channel.DMChannel):
-				await message.delete()
-	# @R6警察
-	if re.search('<@&831204351313313812>', message.content) and message.channel == bot.get_channel(831200868103356476): 
-	    if message.author.id == 361192451777626113 or message.author.id == 854013876411564039:
-		    chance = random.randint(1, 100)
-		    print(chance)
-		    if chance <= 10:
-			    for _ in range(10):
-				    await message.channel.send('<@&875375560132530197>')
-				    time.sleep(0.5)
-			    await message.channel.send('操你媽 你現在爽了沒')
-		    else:
-			    await message.channel.send('幹你娘 閉嘴 低能兒')
-	# 請問這是我婆嗎
-	wifeRegex = re.compile(r'.*婆.*[嗎吧]')
-	if re.match(wifeRegex, message.content):
-		if message.author.id == settings['memberIDs']['深坑麻辣臭豆腐P']:
-			lines = ['是', '沒錯', '當然']
-			await message.channel.send(random.choice(lines))
-		else:
-			lines = ['0', '並沒有', '不是', '想太多', '快醒醒', '滾']
-			await message.channel.send(random.choice(lines))
-	# 唐主席中文名言集
-	if message.content == '真的':
-		pic = discord.File(os.path.join(dir, 'Pic', 'Really.png'))
-		await message.channel.send(file=pic)
-	if message.content == '謝謝':
-		pic = discord.File(os.path.join(dir, 'Pic', 'Thanks.png'))
-		await message.channel.send(file=pic)
-	sleepRegex = r'(我要)?睡[了啦]?\b|那麼我要睡啦|.*晚安'
-	if re.match(sleepRegex, message.content):
-		pic = discord.File(os.path.join(dir, 'Pic', 'GoodNight.png'))
-		await message.channel.send(file=pic)
-	# 針對鴆希說婆
-	if message.author.id == 361192451777626113 and re.search(
-	    '婆', message.content):
-		lines = ['0', '並沒有', '不是']
-		await message.channel.send(random.choice(lines))
-	# 好笑嗎
-	if message.content == '好笑嗎' and message.reference != None:
-		dumb_jokes = settings['dumb_jokes']
-		target = await message.channel.fetch_message(message.reference.message_id)
-		if target.author == bot.user:
-			lines = ['別想給我來這招', '不好笑']
-			await message.channel.send(random.choice(lines))
-		else:
-			dumb_jokes.append([target.content, target.author.id])
-			await message.channel.send('好笑嗎')
-			update_settings()
-		print(dumb_jokes)
-	# 你覺得這樣很好笑嗎
-	if message.content == '你覺得這樣很好笑嗎' and message.reference != None:
-		target = await message.channel.fetch_message(
-		    message.reference.message_id)
-		dumb_jokes = settings['dumb_jokes']
-		if dumb_jokes[-1][1] == target.author.id:
-			dumb_jokes[-1][0] += f'\r{target.content}'
-			await message.channel.send('你要不要想一下你剛才到底講了什麼')
-			update_settings()
-	if message.content == '鴆希又在幹話了' and message.reference != None:
-		target = await message.channel.fetch_message(message.reference.message_id)
-		dumb_jokes = settings['dumb_jokes']
-		dumb_jokes.append([target.content, 361192451777626113])
-		await message.channel.send('= =')
-		update_settings()
-	# 讓機器人可以讀取指令
-	await bot.process_commands(message)
-
-
-@bot.command()
-async def gacha(ctx, game, type, count: int = None, too_many=None):
-	if too_many != None:
-		await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
-		return
-	if count == None:
-		count = 1
-	output = ''
-	result = {}
-	if count < 1:
-		await ctx.send('次數不是正整數我是要怎麼抽')
-		return
-	games = {
-	    'LLSIF': [['R', 'SR', 'SSR', 'UR'], [80, 15, 4, 1], 11],
-	    'LLAS': [['R', 'SR', 'UR'], [85, 10, 5], 10],
-	    'ARKNIGHTS': [['3★', '4★', '5★', '6★'], [40, 50, 8, 2], 10]
-	}
-	Game = games.get(game.upper())
-	if Game != None:
-		if type.lower() == 'single' or type.upper(
-		) == 'S' or type == '單' or type == '單抽':
-			if count > 100:
-				await ctx.send('那麼多我抽不完 = =')
-				return
-			cards = random.choices(Game[0], weights=Game[1], k=count)
-			for rarity in Game[0]:
-				for card in cards:
-					if card == rarity:
-						result[rarity] = result.get(rarity, 0) + 1
-			for x in range(len(cards)):
-				if cards[x] == Game[0][-1]:
-					cards[x] = f'__**{Game[0][-1]}**__'
-			for x in range(len(cards)):
-				if (x + 1) % 5 == 0:
-					output += f'[{cards[x]}]、\r'
-				else:
-					output += f'[{cards[x]}]、'
-			if output[-1] == '、':
-				output = output[:-1:]
-			elif output[-1] == '\r':
-				output = output[:-2:]
-			output += f'\r合計：'
-		elif type.lower() == 'multi' or type.upper(
-		) == 'M' or type == '連' or type == '連抽':
-			if count > 30:
-				await ctx.send('那麼多我抽不完 = =')
-				return
-			for x in range(count):
-				cards = random.choices(Game[0], weights=Game[1], k=Game[2] - 1)
-				high_rarities = [[], []]
-				for y in range(1, len(Game[0])):
-					high_rarities[0].append(Game[0][y])
-					high_rarities[1].append(Game[1][y])
-				high_rarities[1][0] += Game[1][0]
-				cards.append(
-				    random.choices(high_rarities[0],
-				                   weights=high_rarities[1],
-				                   k=1)[0])
-				for rarity in Game[0]:
-					for card in cards:
-						if card == rarity:
-							result[rarity] = result.get(rarity, 0) + 1
-				for x in range(len(cards)):
-					if cards[x] == Game[0][-1]:
-						cards[x] = f'__**{Game[0][-1]}**__'
-				output += f'{str(cards)}\r'
-			output += '合計：'
-		else:
-			await ctx.send('要單抽還是連抽講清楚啦')
-			return
-		for rarity in Game[0]:
-			if result.get(rarity) != None:
-				output += f'\r{rarity}: {result[rarity]}張'
-			else:
-				output += f'\r{rarity}: 0張'
-		await ctx.send(output)
-	else:
-		await ctx.send('那什麼鳥遊戲 聽都沒聽過')
-
-@gacha.error
-async def gacha_error(ctx, error):
-	if isinstance(error, commands.MissingRequiredArgument):
-		await ctx.send('指令格式錯誤。\r正確格式：>gacha [遊戲] [single/multi] [次數]')
-	elif isinstance(error, commands.BadArgument):
-		await ctx.send('次數不是正整數我是要怎麼抽')
+    #YouTubeCrawler.start()
 
 @bot.command()
 async def 白痴語錄(ctx):
@@ -237,7 +64,34 @@ async def get_help(ctx):
 	    inline=False)
 	await ctx.send(embed=embed)
 
-@tasks.loop(minutes=3.0)
+@bot.command()
+async def temp(ctx):
+	numbers = crawler.run()
+	if numbers != []:
+		output = ''
+		for a in numbers:
+			output += f'{a}號 '
+		output += '還沒填體溫'
+		await ctx.send(output)
+	else:
+		await ctx.send('大家很乖')
+
+@bot.command()
+async def load(ctx, extension):
+	bot.load_extension(f'cmds.{extension}')
+	await ctx.send(f'已載入{extension}。')
+
+@bot.command()
+async def unload(ctx, extension):
+	bot.unload_extension(f'cmds.{extension}')
+	await ctx.send(f'已卸載{extension}。')
+
+@bot.command()
+async def reload(ctx, extension):
+	bot.reload_extension(f'cmds.{extension}')
+	await ctx.send(f'已重新載入{extension}。')
+
+'''@tasks.loop(minutes=3.0)
 async def YouTubeCrawler():
 	Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
 	uploads_id = Crawler.get_uploads_id('UCTkyJbRhal4voLZxmdRSssQ')
@@ -247,18 +101,11 @@ async def YouTubeCrawler():
 		channel = bot.get_channel(831184709241274372)
 		await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
 	settings['last_upload'][0] = video_info['time']
-	update_settings()
+	update_settings()'''
 
-@tasks.loop(minutes=5.0)
-async def MuseTWCrawler():
-  Crawler = YTCrawler.YTCrawler(Token['YTAPI'])
-  playlist = Crawler.get_playlist('PL12UaAf_xzfrCAOTroy2IhYeGg7mYc6wO')
-  video_info = Crawler.get_video(playlist[-1])
-  if settings['last_upload'][1] != video_info['time']:
-    channel = bot.get_channel(831184709241274372)
-    await channel.send(f"{video_info['channel']}發布了新影片！\r{video_info['url']}")
-  settings['last_upload'][1] = video_info['time']
-  update_settings()
+for file in os.listdir(os.path.join(dir, 'cmds')):
+	if file.endswith('.py'):
+		bot.load_extension(f'cmds.{file[:-3]}')
 
 if __name__ == '__main__':
 	bot.run(Token['TOKEN'])

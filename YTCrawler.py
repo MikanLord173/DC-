@@ -1,9 +1,18 @@
-import requests
+import requests, os, json, re
+from bot import dir
+
+with open(os.path.join(dir, 'setting.json'), 'r', encoding='utf-8') as jfile:
+    settings = json.load(jfile)
+
+with open(os.path.join(dir, 'token.json'), 'r', encoding='utf-8') as jtoken:
+    Token = json.load(jtoken)
 
 class YTCrawler():
-    def __init__(self, key):
+    def __init__(self, channel_id, keyword=None):
+        self.channel_id = channel_id
+        self.keyword = keyword
         self.base_url = 'https://www.googleapis.com/youtube/v3/'
-        self.key = key
+        self.key = Token['YTAPI']
 
     def html_to_json(self, path):
         url = f'{self.base_url}{path}&key={self.key}'
@@ -53,6 +62,16 @@ class YTCrawler():
         }
         return info
         
+    def Run(self):
+        uploads = self.get_uploads_id(self.channel_id)
+        videos = self.get_playlist(uploads)
+        info = self.get_video(videos[0])
+        if self.keyword != None and re.search(self.keyword, info['title']):
+            return info
+        elif self.keyword == None:
+            return info
+        else:
+            return None
 
 """
 {
